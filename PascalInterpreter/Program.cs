@@ -16,6 +16,7 @@ namespace PascalInterpreter
                 if (string.IsNullOrEmpty(input))
                     continue;
                 var isSymbolMode = input.Contains("-s");
+                var isAnalyzeMode = input.Contains("-d");
                 if (input.ToLowerInvariant().StartsWith("test"))
                     input = "PROGRAM Part10AST; VAR a, b : INTEGER; y: REAL; BEGIN { Part10AST } a:= 2; b:= 10 * a + 10 * a DIV 4; y:= 20 / 7 + 3.14; END.  { Part10AST }";
                 if (input.ToLowerInvariant().StartsWith("run"))
@@ -36,6 +37,20 @@ namespace PascalInterpreter
                     var tableBuilder = new SymbolTableBuilder();
                     tableBuilder.Visit(tree);
                     Console.WriteLine($"{tableBuilder}\n");
+                }
+
+                if (isAnalyzeMode)
+                {
+                    Console.WriteLine("//= Begin Analysis =//");
+                    var analyzer = new SymanticAnalyzer();
+                    analyzer.Visit(tree);
+                    if (!analyzer.IsSuccess)
+                    {
+                        Console.WriteLine("\tCompile-time Errors:");
+                        foreach (var error in analyzer.Errors)
+                            Console.WriteLine($"\t\t{error.Message}");
+                    }
+                    Console.WriteLine("//= End Analysis =//");
                 }
 
                 var interpreter = new Interpreter();
