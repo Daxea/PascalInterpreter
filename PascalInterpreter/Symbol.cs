@@ -39,4 +39,23 @@ namespace PascalInterpreter
 
         public override string ToString() => $"Variable: {Name} : {Type}";
     }
+
+    public class ProcedureSymbol : Symbol
+    {
+        public List<VariableSymbol> Parameters { get; }
+
+        public ProcedureSymbol(string name, params VariableSymbol[] parameters)
+            : base(name)
+        {
+            Parameters = new List<VariableSymbol>(parameters);
+        }
+
+        public override string ToString()
+        {
+            var paramDisplay = string.Empty;
+            foreach (var param in Parameters)
+                paramDisplay += $"\t{param.Name} : {param.Type.Name}\n";
+            return $"Symbol: {Name}\n{paramDisplay}";
+        }
+    }
 }

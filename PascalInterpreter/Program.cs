@@ -25,6 +25,11 @@ namespace PascalInterpreter
                     var path = lineArgs[lineArgs.Length - 1];
                     input = File.ReadAllText(path);
                 }
+                else if ("cls".Equals(input.ToLowerInvariant()))
+                {
+                    Console.Clear();
+                    continue;
+                }
                 else if ("quit".Contains(input.ToLowerInvariant()))
                     break;
                 var lexer = new Lexer(input);

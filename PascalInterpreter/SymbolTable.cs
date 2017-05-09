@@ -7,7 +7,7 @@ namespace PascalInterpreter
 {
     public class SymbolTable
     {
-        private OrderedDictionary _symbols;
+        protected OrderedDictionary _symbols;
 
         public SymbolTable()
         {
@@ -27,7 +27,7 @@ namespace PascalInterpreter
             _symbols.Add(symbol.Name, symbol);
         }
 
-        public T Lookup<T>(string name)
+        public virtual T Lookup<T>(string name)
             where T : Symbol
         {
             Console.WriteLine($"Lookup: {name}");
@@ -43,5 +43,44 @@ namespace PascalInterpreter
                 result += $"\n\t{_symbols[i]}";
             return result;
         }
+    }
+
+    public class ScopedSymbolTable : SymbolTable
+    {
+        public string ScopeName { get; }
+        public int ScopeLevel { get; }
+        public ScopedSymbolTable ParentScope { get; }
+
+        public ScopedSymbolTable(string scopeName, int scopeLevel)
+        {
+            ScopeName = scopeName;
+            ScopeLevel = scopeLevel;
+        }
+
+        public ScopedSymbolTable(string scopeName, ScopedSymbolTable parentScope) : base()
+        {
+            ScopeName = scopeName;
+            ParentScope = parentScope;
+            ScopeLevel = ParentScope.ScopeLevel + 1;
+        }
+
+        public override T Lookup<T>(string name)
+        {
+            return Lookup<T>(name, false);
+        }
+
+        public T Lookup<T>(string name, bool limitSearch)
+            where T : Symbol
+        {
+            if (_symbols.Contains(name))
+                return _symbols[name].As<T>();
+            if (limitSearch)
+                return null;
+            if (ParentScope != null)
+                return ParentScope.Lookup<T>(name);
+            return null;
+        }
+
+        public override string ToString() => $"Scope: {ScopeLevel}-{ScopeName}\n{base.ToString()}";
     }
 }

@@ -129,16 +129,30 @@ namespace PascalInterpreter
     public class ProcedureDeclarationNode : DeclarationNode
     {
         public string Name { get; }
+        public ParamNode[] Parameters { get; }
         public BlockNode Block { get; }
 
-        public ProcedureDeclarationNode(string name, BlockNode block)
+        public ProcedureDeclarationNode(string name, ParamNode[] parameters, BlockNode block)
         {
             Name = name;
+            Parameters = parameters;
             Block = block;
         }
     }
 
     public class NoOpNode : AstNode { }
+
+    public class ParamNode : AstNode
+    {
+        public VariableNode Variable { get; }
+        public TypeNode Type { get; }
+
+        public ParamNode(VariableNode variable, TypeNode type)
+        {
+            Variable = variable;
+            Type = type;
+        }
+    }
 
     public class Parser
     {
@@ -305,12 +319,21 @@ namespace PascalInterpreter
 
             while (_currentToken.Type == TokenTypes.Procedure)
             {
+                // (PROCEDURE ID (LPAREN formal_parameter_list RPAREN)? SEMI block SEMI)*
+
                 Eat(TokenTypes.Procedure);
                 var procedureName = _currentToken.Value.As<string>();
                 Eat(TokenTypes.Id);
+                ParamNode[] parameters = new ParamNode[0];
+                if (_currentToken.Type == TokenTypes.LeftParenthesis)
+                {
+                    Eat(TokenTypes.LeftParenthesis);
+                    parameters = ParameterList();
+                    Eat(TokenTypes.RightParenthesis);
+                }
                 Eat(TokenTypes.Semi);
                 var blockNode = Block();
-                declarations.Add(new ProcedureDeclarationNode(procedureName, blockNode));
+                declarations.Add(new ProcedureDeclarationNode(procedureName, parameters, blockNode));
                 Eat(TokenTypes.Semi);
             }
 
@@ -344,6 +367,43 @@ namespace PascalInterpreter
             var node = new TypeNode(token);
             Eat(token.Type);
             return node;
+        }
+
+        private ParamNode[] Parameters()
+        {
+            // formal_parameters : ID (COMMA ID)* COLON type_spec
+            var parameterVars = new List<VariableNode> { new VariableNode(_currentToken) };
+            Eat(TokenTypes.Id);
+
+            while (_currentToken.Type == TokenTypes.Comma)
+            {
+                Eat(TokenTypes.Comma);
+                parameterVars.Add(new VariableNode(_currentToken));
+                Eat(TokenTypes.Id);
+            }
+
+            Eat(TokenTypes.Colon);
+
+            var typeNode = TypeSpec();
+            var parameters = new List<ParamNode>();
+            foreach (var parameter in parameterVars)
+                parameters.Add(new ParamNode(parameter, typeNode));
+            return parameters.ToArray();
+        }
+
+        private ParamNode[] ParameterList()
+        {
+            // formal_parameter_list : formal_parameters | formal_parameters SEMI formal_parameter_list
+
+            var paramList = new List<ParamNode>(Parameters());
+
+            while (_currentToken.Type == TokenTypes.Semi)
+            {
+                Eat(TokenTypes.Semi);
+                paramList.AddRange(ParameterList());
+            }
+
+            return paramList.ToArray();
         }
     }
 }

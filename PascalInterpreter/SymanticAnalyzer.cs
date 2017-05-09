@@ -8,11 +8,11 @@ namespace PascalInterpreter
 {
     public class SymanticAnalyzer : NodeVisitior
     {
-        private SymbolTable _symbols;
+        private ScopedSymbolTable _currentScope;
 
         public SymanticAnalyzer()
         {
-            _symbols = new SymbolTable();
+            
         }
 
         private void Visit(BlockNode node)
@@ -22,7 +22,46 @@ namespace PascalInterpreter
             Visit(node.Compound);
         }
 
-        private void Visit(ProgramNode node) => Visit(node.Block);
+        private void Visit(ProgramNode node)
+        {
+            Console.WriteLine("Enter Scope: global");
+            var globalScope = new ScopedSymbolTable("global", 0);
+            _currentScope = globalScope;
+
+            Visit(node.Block);
+
+            _currentScope = _currentScope.ParentScope;
+
+            Console.WriteLine(globalScope);
+            Console.WriteLine("Exit Scope: global");
+        }
+
+        private void Visit(ProcedureDeclarationNode node)
+        {
+            var procName = node.Name;
+            var procSymbol = new ProcedureSymbol(procName);
+            _currentScope.Define(procSymbol);
+
+            Console.WriteLine($"Enter Scope: {procName}");
+            var procedureScope = new ScopedSymbolTable(procName, _currentScope);
+            _currentScope = procedureScope;
+
+            foreach (var param in node.Parameters)
+            {
+                var paramType = _currentScope.Lookup<TypeSymbol>(param.Type.Value);
+                var paramName = param.Variable.Value.As<string>();
+                var variableSymbol = new VariableSymbol(paramName, paramType);
+                _currentScope.Define(variableSymbol);
+                procSymbol.Parameters.Add(variableSymbol);
+            }
+
+            Visit(node.Block);
+
+            _currentScope = _currentScope.ParentScope;
+
+            Console.WriteLine(procedureScope);
+            Console.WriteLine($"Exit Scope: {procName}");
+        }
 
         private void Visit(CompoundNode node)
         {
@@ -35,7 +74,7 @@ namespace PascalInterpreter
         private void Visit(VariableDeclarationNode node)
         {
             var typeName = node.Type.Value;
-            var typeSymbol = _symbols.Lookup<TypeSymbol>(typeName);
+            var typeSymbol = _currentScope.Lookup<TypeSymbol>(typeName);
 
             var name = node.Variable.Value.As<string>();
             var varSymbol = new VariableSymbol(name, typeSymbol);
@@ -43,19 +82,19 @@ namespace PascalInterpreter
             // Check for any symbol with the specified name
             // so we don't accidentally end up with types or methods
             // with the same name as a variable. :D
-            if (_symbols.Lookup<Symbol>(name) != null)
+            if (_currentScope.Lookup<Symbol>(name, limitSearch: true) != null)
             {
                 ReportError(new Exception($"{name} has already been defined! Please use unique identifiers for members."));
                 return;
             }
 
-            _symbols.Define(varSymbol);
+            _currentScope.Define(varSymbol);
         }
 
         private void Visit(VariableNode node)
         {
             var name = node.Value.As<string>();
-            var symbol = _symbols.Lookup<VariableSymbol>(name);
+            var symbol = _currentScope.Lookup<VariableSymbol>(name);
             if (symbol == null)
                 ReportError(new Exception($"Variable {name} has not been declared!"));
         }
